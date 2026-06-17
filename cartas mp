@@ -1,0 +1,859 @@
+from PIL import Image, ImageDraw, ImageFont, ImageTk
+import pandas as pd
+import os
+import tkinter as tk
+from tkinter import filedialog, ttk, messagebox
+from tkinter import Toplevel
+import customtkinter as ctk
+root = ctk.CTk()
+
+# =====================================
+# CONFIGURAÇÕES FIXAS
+# =====================================
+
+IMAGEM_BASE = "1modelo.png"
+
+FONTE_TEXTO = "gothic.ttf"
+
+FONTE_NOME = "21031704035.ttf"
+
+TAMANHO_TEXTO = 17
+
+TAMANHO_NOME = 40
+
+COR = (0, 0, 0)
+
+LARGURA_TEXTO = 800
+LARGURA_TEXTO2 = 750
+
+# =====================================
+# SELECIONAR PLANILHA
+# =====================================
+
+def selecionar_planilha():
+
+    arquivo = filedialog.askopenfilename(
+        filetypes=[
+            ("Arquivos Excel", "*.xlsx")
+        ]
+    )
+
+    entrada_planilha.delete(0, tk.END)
+
+    entrada_planilha.insert(0, arquivo)
+
+# =====================================
+# SELECIONAR PASTA
+# =====================================
+
+def selecionar_pasta():
+
+    pasta = filedialog.askdirectory()
+
+    entrada_pasta.delete(0, tk.END)
+
+    entrada_pasta.insert(0, pasta)
+
+
+# =====================================
+# QUEBRAR LINHAS
+# =====================================
+
+def quebrar_linhas(draw, texto, fonte, largura_maxima):
+
+    palavras = texto.split()
+
+    linhas = []
+
+    linha_atual = ""
+
+    for palavra in palavras:
+
+        if linha_atual == "":
+            teste = palavra
+        else:
+            teste = linha_atual + " " + palavra
+
+        bbox = draw.textbbox(
+            (0, 0),
+            teste,
+            font=fonte
+        )
+
+        largura = bbox[2] - bbox[0]
+
+        if largura <= largura_maxima:
+
+            linha_atual = teste
+
+        else:
+
+            linhas.append(linha_atual)
+
+            linha_atual = palavra
+
+    if linha_atual:
+
+        linhas.append(linha_atual)
+
+    return linhas
+
+# =====================================
+# TEXTO VARIÁVEL
+# =====================================
+
+def gerar_texto_variavel(
+    cargo,
+    salario,
+    beneficio,
+    MES_ANO
+):
+
+    partes = []
+
+    if cargo:
+
+        partes.append(
+            f"novo cargo de {cargo}"
+        )
+
+    if salario:
+
+        partes.append(
+            f"salário de R${salario}"
+        )
+
+    if beneficio:
+
+        partes.append(
+            f"benefício flexível de R${beneficio}"
+        )
+
+    if len(partes) == 0:
+
+        return ""
+
+    texto_final_singular = (
+        f", que será considerado "
+        f"a partir de {MES_ANO}."
+    )
+
+    texto_final_plural = (
+        f", que serão considerados "
+        f"a partir de {MES_ANO}."  
+    )
+
+    # =================================
+    # UMA INFORMAÇÃO
+    # =================================
+
+    if len(partes) == 1:
+
+        return (
+            "Estamos felizes de compartilhar "
+            f"seu {partes[0]}"
+            f"{texto_final_singular}"
+        )
+
+    # =================================
+    # DUAS INFORMAÇÕES
+    # =================================
+
+    elif len(partes) == 2:
+
+        return (
+            "Estamos felizes de compartilhar "
+            f"seu {partes[0]} e "
+            f"{partes[1]}"
+            f"{texto_final_plural}"
+        )
+
+    # =================================
+    # TRÊS INFORMAÇÕES
+    # =================================
+
+    else:
+
+        return (
+            "Estamos felizes de compartilhar "
+            f"seu {partes[0]}, "
+            f"{partes[1]} e "
+            f"{partes[2]}"
+            f"{texto_final_plural}"
+        )
+
+# =====================================
+# GERAR CARTAS
+# =====================================
+
+def gerar_cartas():
+
+    PLANILHA = entrada_planilha.get()
+
+    PASTA_SAIDA = entrada_pasta.get()
+
+    mes = combo_mes.get()
+
+    ano = combo_ano.get()
+
+    # =================================
+    # VALIDAÇÕES
+    # =================================
+
+    if not PLANILHA:
+
+        messagebox.showerror(
+            "Erro",
+            "Selecione a planilha."
+        )
+
+        return
+
+    if not PASTA_SAIDA:
+
+        messagebox.showerror(
+            "Erro",
+            "Selecione a pasta."
+        )
+
+        return
+
+    if not mes or not ano:
+
+        messagebox.showerror(
+            "Erro",
+            "Selecione mês e ano."
+        )
+
+        return
+
+    # =================================
+    # MÊS/ANO
+    # =================================
+
+    MES_ANO = f"{mes}/{ano}"
+
+    # =================================
+    # CRIAR PASTA
+    # =================================
+
+    os.makedirs(
+        PASTA_SAIDA,
+        exist_ok=True
+    )
+
+    # =================================
+    # LER PLANILHA
+    # =================================
+
+    df = pd.read_excel(PLANILHA)
+
+    # =================================
+    # FONTES
+    # =================================
+
+    fonte_nome = ImageFont.truetype(
+        FONTE_NOME,
+        TAMANHO_NOME
+    )
+
+    fonte_texto = ImageFont.truetype(
+        FONTE_TEXTO,
+        TAMANHO_TEXTO
+    )
+
+    # =================================
+    # LOOP
+    # =================================
+
+    for _, row in df.iterrows():
+
+        imagem = Image.open(
+            IMAGEM_BASE
+        ).convert("RGB")
+
+        draw = ImageDraw.Draw(imagem)
+
+        # =============================
+        # DADOS
+        # =============================
+
+        nome = str(
+            row["NOME CURTO"]
+        ).strip()
+
+        cargo = str(
+            row["CARGO NOVO"]
+        ).strip()
+
+        salario = str(
+            row["SALARIO NOVO"]
+        ).strip()
+
+        beneficio = str(
+            row["FLEX NOVO"]
+        ).strip()
+
+        gerente = str(
+            row["GERENTE"]
+        ).strip()
+
+        # =============================
+        # REMOVER NAN
+        # =============================
+
+        nome = (
+            ""
+            if nome.lower() == "nan"
+            else nome
+        )
+
+        cargo = (
+            ""
+            if cargo.lower() == "nan"
+            else cargo
+        )
+
+        salario = (
+            ""
+            if salario.lower() == "nan"
+            else salario
+        )
+
+        beneficio = (
+            ""
+            if beneficio.lower() == "nan"
+            else beneficio
+        )
+
+        gerente = (
+            ""
+            if gerente.lower() == "nan"
+            else gerente
+        )
+
+
+
+        # =============================
+        # TEXTOS
+        # =============================
+
+        texto_intro = (
+            "Aqui na Hitss Brasil, "
+            "brilha quem se dedica, "
+            "entrega, tem atitude "
+            "e a cultura na veia."
+        )
+
+        texto_variavel = gerar_texto_variavel(
+            cargo,
+            salario,
+            beneficio,
+            MES_ANO
+        )
+
+        texto_gerente = ""
+        if gerente:
+            texto_gerente = "Com esta mudança, não será mais necessário" \
+            " o lançamento de horas no Sistema de Controle de Ponto " \
+            "Orhganiza. Essa alteração foi aprovada pela gestão e " \
+            "está em conformidade com as políticas internas da empresa."
+
+        texto_beneficio = (
+            "A proporção dos benefícios "
+            "será mantida, conforme sua "
+            "escolha inicial. Caso queira "
+            "realizar uma nova distribuição, "
+            "aguarde a janela de janeiro."
+        )
+
+        # =============================
+        # POSIÇÕES
+        # =============================
+
+        if beneficio:
+
+            x_texto = 95
+
+            y = 60
+
+        else:
+
+            x_texto = 80
+
+            y = 90
+
+        # =============================
+        # NOME
+        # =============================
+
+        draw.text(
+            (x_texto, y),
+            f"{nome},",
+            fill=COR,
+            font=fonte_nome
+        )
+
+        y += 75
+
+        # =============================
+        # INTRODUÇÃO
+        # =============================
+
+        linhas_intro = quebrar_linhas(
+            draw,
+            texto_intro,
+            fonte_texto,
+            LARGURA_TEXTO
+        )
+
+        for linha in linhas_intro:
+
+            draw.text(
+                (x_texto, y),
+                linha,
+                fill=COR,
+                font=fonte_texto
+            )
+
+            y += 30
+
+        y += 10
+
+        # =============================
+        # TEXTO VARIÁVEL
+        # =============================
+
+        linhas_variavel = quebrar_linhas(
+            draw,
+            texto_variavel,
+            fonte_texto,
+            LARGURA_TEXTO
+        )
+
+        for linha in linhas_variavel:
+
+            draw.text(
+                (x_texto, y),
+                linha,
+                fill=COR,
+                font=fonte_texto
+            )
+
+            y += 35
+
+
+        # ==========
+        # GERENTE
+        # ==========
+        if texto_gerente:
+            y += 10
+
+            linhas_gerente = quebrar_linhas(
+                draw,
+                texto_gerente,
+                fonte_texto,
+                LARGURA_TEXTO
+            )
+
+            for linha in linhas_gerente:
+                draw.text(
+                    (x_texto, y),
+                    linha,
+                    fill=COR,
+                    font=fonte_texto
+                )
+
+                y += 30
+
+
+        # =============================
+        # BENEFÍCIO
+        # =============================
+
+        if beneficio:
+
+            y += 10
+
+            linhas_beneficio = quebrar_linhas(
+                draw,
+                texto_beneficio,
+                fonte_texto,
+                LARGURA_TEXTO2
+            )
+
+            for linha in linhas_beneficio:
+
+                draw.text(
+                    (x_texto, y),
+                    linha,
+                    fill=COR,
+                    font=fonte_texto
+                )
+
+                y += 30
+
+        # =============================
+        # SALVAR
+        # =============================
+
+        nome_arquivo = f"{nome}.png"
+
+        caminho_saida = os.path.join(
+            PASTA_SAIDA,
+            nome_arquivo
+        )
+
+        imagem.save(caminho_saida)
+        imagem.close()
+
+    # =================================
+    # FINALIZADO
+    # =================================
+    root.update_idletasks()
+    
+    messagebox.showinfo(
+        "Concluído",
+        "Cartas criadas com sucesso!"
+    )
+
+# =====================================
+# TOOLTIP
+# =====================================
+
+tooltip = None
+
+
+def mostrar_tooltip(event):
+
+    global tooltip
+
+    tooltip = tk.Toplevel(root)
+
+    tooltip.wm_overrideredirect(True)
+
+    x = event.widget.winfo_rootx() + 40
+
+    y = event.widget.winfo_rooty() + 20
+
+    tooltip.wm_geometry(f"+{x}+{y}")
+
+    texto = (
+        "As variáveis na planilha Excel precisam\n"
+        "estar com os nomes da seguinte maneira:\n\n"
+        "(Cuidado com espaço e Caps Lock)\n\n"
+        "ID\n"
+        "NOME\n"
+        "NOME CURTO\n"
+        "CARGO NOVO\n"
+        "SALARIO NOVO\n"
+        "FLEX NOVO"
+        "GERENTE"
+    )
+
+    label = tk.Label(
+        tooltip,
+        text=texto,
+        justify="left",
+        bg="#FFA726",
+        fg="black",
+        relief="solid",
+        bd=1,
+        padx=12,
+        pady=10,
+        font=("Arial", 9)
+    )
+
+    label.pack()
+
+def esconder_tooltip(event):
+
+    global tooltip
+
+    if tooltip:
+
+        tooltip.destroy()
+
+        tooltip = None
+
+# =====================================
+# INTERFACE
+# =====================================
+root = tk.Tk()
+
+root.title(
+    "Cartas de Movimentação"
+)
+
+# =====================================
+# TAMANHO FIXO
+# =====================================
+
+largura = 620
+altura = 640
+
+largura_tela = root.winfo_screenwidth()
+altura_tela = root.winfo_screenheight()
+
+x = int((largura_tela / 2) - (largura / 2))
+y = int((altura_tela / 2) - (altura / 2))
+
+root.geometry(f"{largura}x{altura}+{x}+{y}")
+
+root.resizable(False, False)
+
+root.configure(
+    bg="#ECE8E8"
+)
+
+# =====================================
+# TÍTULO
+# =====================================
+
+titulo = tk.Label(
+    root,
+    text="CARTAS DE MOVIMENTAÇÃO PESSOAL",
+    bg="#C40000",
+    fg="white",
+    font=("Arial", 16, "bold"),
+    pady=12
+)
+
+titulo.pack(
+    fill="x",
+    padx=30,
+    pady=15
+)
+
+# =====================================
+# BLOCO PLANILHA
+# =====================================
+
+frame1 = tk.Frame(
+    root,
+    bg="#D9D9D9",
+    padx=15,
+    pady=15
+)
+
+frame1.pack(
+    fill="x",
+    padx=35,
+    pady=6
+)
+
+label1 = tk.Label(
+    frame1,
+    text="Selecione a planilha com os dados dos funcionários",
+    bg="#D9D9D9",
+    font=("Arial", 10)
+)
+
+label1.pack()
+
+entrada_planilha = tk.Entry(
+    frame1,
+    width=45
+)
+
+entrada_planilha.pack(
+    pady=8
+)
+
+botao_planilha = tk.Button(
+    frame1,
+    text="Selecionar",
+    command=selecionar_planilha,
+    font=("Arial", 9)
+)
+
+botao_planilha.pack()
+
+# =====================================
+# TRIÂNGULO
+# =====================================
+
+botao_info = tk.Button(
+    frame1,
+    text="⚠",
+    font=("Arial", 14),
+    bd=0,
+    bg="#D9D9D9",
+    cursor="hand2"
+)
+
+botao_info.pack(
+    pady=3
+)
+
+botao_info.bind(
+    "<Enter>",
+    mostrar_tooltip
+)
+
+botao_info.bind(
+    "<Leave>",
+    esconder_tooltip
+)
+
+# =====================================
+# BLOCO PASTA
+# =====================================
+
+frame2 = tk.Frame(
+    root,
+    bg="#D9D9D9",
+    padx=15,
+    pady=15
+)
+
+frame2.pack(
+    fill="x",
+    padx=35,
+    pady=6
+)
+
+label2 = tk.Label(
+    frame2,
+    text="Selecione uma pasta para direcionar suas cartas",
+    bg="#D9D9D9",
+    font=("Arial", 10)
+)
+
+label2.pack()
+
+entrada_pasta = tk.Entry(
+    frame2,
+    width=45
+)
+
+entrada_pasta.pack(
+    pady=8
+)
+
+botao_pasta = tk.Button(
+    frame2,
+    text="Selecionar",
+    command=selecionar_pasta,
+    font=("Arial", 9)
+)
+
+botao_pasta.pack()
+
+# =====================================
+# BLOCO MÊS/ANO
+# =====================================
+
+frame3 = tk.Frame(
+    root,
+    bg="#D9D9D9",
+    padx=15,
+    pady=15
+)
+
+frame3.pack(
+    fill="x",
+    padx=35,
+    pady=6
+)
+
+label3 = tk.Label(
+    frame3,
+    text="A partir de quando será considerado?",
+    bg="#D9D9D9",
+    font=("Arial", 10)
+)
+
+label3.pack(
+    pady=(0, 10)
+)
+
+frame_combo = tk.Frame(
+    frame3,
+    bg="#D9D9D9"
+)
+
+frame_combo.pack()
+
+meses = [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro"
+]
+
+combo_mes = ttk.Combobox(
+    frame_combo,
+    values=meses,
+    state="readonly",
+    width=16
+)
+
+combo_mes.grid(
+    row=0,
+    column=0,
+    padx=10
+)
+
+anos = list(
+    range(2020, 2041)
+)
+
+combo_ano = ttk.Combobox(
+    frame_combo,
+    values=anos,
+    state="readonly",
+    width=16
+)
+
+combo_ano.grid(
+    row=0,
+    column=1,
+    padx=10
+)
+
+# =====================================
+# BOTÃO CRIAR
+# =====================================
+
+botao_criar = ctk.CTkButton(
+    root,
+    text="Criar",
+    command=gerar_cartas,
+    fg_color="#C40000",
+    hover_color="#990000",
+    text_color="white",
+    corner_radius=20,
+    width=220,
+    height=55,
+    font=("Arial", 18, "bold")
+)
+
+botao_criar.pack(
+    pady=20
+)
+
+# =====================================
+# LOOP
+# =====================================
+
+def fechar_programa():
+
+    root.destroy()
+
+    os._exit(0)
+
+root.protocol(
+    "WM_DELETE_WINDOW",
+    fechar_programa
+)
+
+root.mainloop()
