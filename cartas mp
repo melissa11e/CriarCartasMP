@@ -14,6 +14,7 @@ root = ctk.CTk()
 IMAGEM_BASE = "1modelo.png"
 
 FONTE_TEXTO = "gothic.ttf"
+FONTE_NEGRITO = "gothicb.ttf"
 
 FONTE_NOME = "21031704035.ttf"
 
@@ -97,6 +98,42 @@ def quebrar_linhas(draw, texto, fonte, largura_maxima):
         linhas.append(linha_atual)
 
     return linhas
+
+
+def desenhar_texto_misto(draw, x, y, partes, largura_maxima, espacamento_linha=30):
+
+    palavras_formatadas = []
+
+    for texto, fonte in partes:
+        palavras = texto.split(" ")
+
+        for i, palavra in enumerate(palavras):
+            if i < len(palavras) - 1:
+                palavras_formatadas.append((palavra + " ", fonte))
+            else:
+                palavras_formatadas.append((palavra, fonte))
+
+    x_atual = x
+    y_atual = y
+
+    for palavra, fonte in palavras_formatadas:
+        bbox = draw.textbbox((0, 0), palavra, font=fonte)
+        largura_palavra = bbox[2] - bbox[0]
+
+        if x_atual + largura_palavra > x + largura_maxima:
+            x_atual = x
+            y_atual += espacamento_linha
+
+        draw.text(
+            (x_atual, y_atual),
+            palavra,
+            fill=COR,
+            font=fonte
+        )
+
+        x_atual += largura_palavra
+
+    return y_atual + espacamento_linha
 
 # =====================================
 # TEXTO VARIÁVEL
@@ -261,6 +298,10 @@ def gerar_cartas():
         FONTE_TEXTO,
         TAMANHO_TEXTO
     )
+    fonte_negrito = ImageFont.truetype(
+        FONTE_NEGRITO,
+        TAMANHO_TEXTO
+    )
 
     # =================================
     # LOOP
@@ -338,12 +379,9 @@ def gerar_cartas():
         # TEXTOS
         # =============================
 
-        texto_intro = (
-            "Aqui na Hitss Brasil, "
-            "brilha quem se dedica, "
-            "entrega, tem atitude "
-            "e a cultura na veia."
-        )
+        parte1= "Aqui na "
+        parte2= "Hitss Brasil"
+        parte3 = ", brilha quem se dedica, entrega, tem atitude e a cultura na veia."
 
         texto_variavel = gerar_texto_variavel(
             cargo,
@@ -373,14 +411,14 @@ def gerar_cartas():
 
         if beneficio:
 
-            x_texto = 95
-
+            x_texto = 70
+            x_nome= x_texto+50
             y = 60
 
         else:
 
-            x_texto = 80
-
+            x_texto = 70
+            x_nome= x_texto+50
             y = 90
 
         # =============================
@@ -388,7 +426,7 @@ def gerar_cartas():
         # =============================
 
         draw.text(
-            (x_texto, y),
+            (x_nome, y),
             f"{nome},",
             fill=COR,
             font=fonte_nome
@@ -400,25 +438,28 @@ def gerar_cartas():
         # INTRODUÇÃO
         # =============================
 
-        linhas_intro = quebrar_linhas(
+        partes_intro = [
+            (parte1, fonte_texto),
+            (parte2, fonte_negrito),
+            (parte3, fonte_texto)
+        ]
+
+        y=desenhar_texto_misto(
             draw,
-            texto_intro,
-            fonte_texto,
-            LARGURA_TEXTO
+            x_texto,
+            y,
+            partes_intro,
+            LARGURA_TEXTO2,
+            espacamento_linha=30
         )
+        y+=10
 
-        for linha in linhas_intro:
-
-            draw.text(
-                (x_texto, y),
-                linha,
-                fill=COR,
-                font=fonte_texto
-            )
-
-            y += 30
-
-        y += 10
+        deslocamento_centro=0
+        if not texto_gerente:
+            deslocamento_centro +=25
+        if not beneficio:
+            deslocamento_centro += 25
+        y+=deslocamento_centro
 
         # =============================
         # TEXTO VARIÁVEL
@@ -547,7 +588,7 @@ def mostrar_tooltip(event):
         "NOME CURTO\n"
         "CARGO NOVO\n"
         "SALARIO NOVO\n"
-        "FLEX NOVO"
+        "FLEX NOVO\n"
         "GERENTE"
     )
 
